@@ -1,0 +1,351 @@
+<!doctype html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en"> <![endif]-->
+<!--[if IE 9 ]><html class="ie9 no-js"> <![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+
+    <!-- Basic page needs ================================================== -->
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+
+    {% if settings.favicon_enable %}
+    <link rel="shortcut icon" href="{{ 'favicon.png' | asset_url }}" type="image/png" />
+    {% endif %}
+
+    <!-- Title and description ================================================== -->
+    <title>
+        {{ page_title }}{% if current_tags %}{% assign meta_tags = current_tags | join: ', ' %} &ndash; {{ 'general.meta.tags' | t: tags: meta_tags }}{% endif %}{% if current_page != 1 %} &ndash; {{ 'general.meta.page' | t: page: current_page }}{% endif %}{% unless page_title contains shop.name %} &ndash; {{ shop.name }}{% endunless %}
+    </title>
+
+    {% if page_description %}
+    <meta name="description" content="{{ page_description | escape }}">
+    {% endif %}
+
+    <!-- Helpers ================================================== -->
+    {% include 'social-meta-tags' %}
+    <link rel="canonical" href="{{ canonical_url }}">
+    <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=no">
+    <meta name="theme-color" content="{{ settings.color_primary }}">
+
+    <!-- CSS ================================================== -->
+    {{ 'timber.scss.css' | asset_url | stylesheet_tag }}
+
+    <!-- Header hook for plugins ================================================== -->
+    {{ content_for_header }}
+    {% include 'oldIE-js' %}
+
+    {{ '//ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js' | script_tag }}
+    {{ 'modernizr.min.js' | asset_url | script_tag }}
+
+    {% comment %}
+    If you store has customer accounts disabled, you can remove the following JS file
+    {% endcomment %}
+    {% if template contains 'customers' %}
+    {{ 'shopify_common.js' | shopify_asset_url | script_tag }}
+    {% endif %}
+
+</head>
+
+{% comment %}
+Add the page template as a class for easy page or template specific styling.
+{% endcomment %}
+<body id="{{ page_title | handle }}" class="{% if customer %}customer-logged-in {% endif %}template-{{ template | replace: '.', ' ' | truncatewords: 1, '' | handle }}" >
+
+    <div id="NavDrawer" class="drawer drawer--left">
+        <div class="drawer__header">
+            <div class="drawer__title h3">{{ 'layout.drawers.browse' | t }}</div>
+            <div class="drawer__close js-drawer-close">
+                <button type="button" class="icon-fallback-text">
+                    <span class="icon icon-x" aria-hidden="true"></span>
+                    <span class="fallback-text">{{ 'layout.drawers.close_menu' | t }}</span>
+                </button>
+            </div>
+        </div>
+        <!-- begin mobile-nav -->
+        <ul class="mobile-nav">
+            <li class="mobile-nav__item mobile-nav__search">
+                {% include 'search-bar' %}
+            </li>
+            {% for link in linklists.main-menu.links %}
+            {% comment %}
+            Create a dropdown menu by naming a linklist the same as a link in the parent nav
+
+            More info on dropdowns:
+            - http://docs.shopify.com/manual/your-website/navigation/create-drop-down-menu
+            {% endcomment %}
+            {% assign child_list_handle = link.title | handleize %}
+            {% if linklists[child_list_handle].links != blank %}
+            <li class="mobile-nav__item{% if link.active %} mobile-nav__item--active{% endif %}" aria-haspopup="true">
+                <div class="mobile-nav__has-sublist">
+                    <a href="{{ link.url }}" class="mobile-nav__link">{{ link.title }}</a>
+                    <div class="mobile-nav__toggle">
+                        <button type="button" class="icon-fallback-text mobile-nav__toggle-open">
+                            <span class="icon icon-plus" aria-hidden="true"></span>
+                            <span class="fallback-text">See More</span>
+                        </button>
+                        <button type="button" class="icon-fallback-text mobile-nav__toggle-close">
+                            <span class="icon icon-minus" aria-hidden="true"></span>
+                            <span class="fallback-text">{{ 'cart.general.close_cart' | t | json }}</span>
+                        </button>
+                    </div>
+                </div>
+                <ul class="mobile-nav__sublist">
+                    {% for childlink in linklists[child_list_handle].links %}
+                    <li class="mobile-nav__item {% if childlink.active %} mobile-nav__item--active{% endif %}">
+                        <a href="{{ childlink.url }}" class="mobile-nav__link">{{ childlink.title | escape }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </li>
+            {% else %}
+            <li class="mobile-nav__item{% if link.active %} mobile-nav__item--active{% endif %}">
+                <a href="{{ link.url }}" class="mobile-nav__link">{{ link.title }}</a>
+            </li>
+            {% endif %}
+            {% endfor %}
+
+            {% comment %}
+            If customer accounts are enabled, provide login and create account links
+            {% endcomment %}
+            {% if shop.customer_accounts_enabled %}
+            {% if customer %}
+            <li class="mobile-nav__item">
+                {% if customer.first_name != blank %}
+                {% capture first_name %}{{ customer.first_name }}{% endcapture %}
+                <a href="/account">{{ 'layout.customer.logged_in_as_html' | t: first_name: first_name }}</a>
+                {% else %}
+                <a href="/account">{{ 'layout.customer.account' | t }}</a>
+                {% endif %}
+            </li>
+            <li class="mobile-nav__item">
+                {{ 'layout.customer.log_out' | t | customer_logout_link }}
+            </li>
+            {% else %}
+            <li class="mobile-nav__item">
+                {{ 'layout.customer.log_in' | t | customer_login_link }}
+            </li>
+            <li class="mobile-nav__item">
+                {{ 'layout.customer.create_account' | t | customer_register_link }}
+            </li>
+            {% endif %}
+            {% endif %}
+        </ul>
+        <!-- //mobile-nav -->
+    </div>
+    {% if settings.ajax_cart_method == "drawer" %}
+    <div id="CartDrawer" class="drawer drawer--right">
+        <div class="drawer__header">
+            <div class="drawer__title h3">{{ 'cart.general.title' | t }}</div>
+            <div class="drawer__close js-drawer-close">
+                <button type="button" class="icon-fallback-text">
+                    <span class="icon icon-x" aria-hidden="true"></span>
+                    <span class="fallback-text">{{ 'cart.general.close_cart' | t | json }}</span>
+                </button>
+            </div>
+        </div>
+        <div id="CartContainer"></div>
+    </div>
+    {% endif %}
+    <div id="PageContainer" class="is-moved-by-drawer">
+
+        {% include 'header' %}
+
+        <main class="wrapper main-content" role="main">
+
+            {{ content_for_layout }}
+
+        </main>
+
+        <!-- begin site-footer -->
+        <footer class="site-footer small--text-center" role="contentinfo">
+            <div class="wrapper">
+                <div class="grid">
+                    {% if settings.footer_social_enable %}
+                    <div class="grid__item large--one-third medium--one-half">
+                        <h3>{{ 'layout.footer.social_title' | t }}</h3>
+                        <ul class="inline-list social-icons">
+                            {% if settings.social_twitter_link != blank %}
+                            <li>
+                                <a class="icon-fallback-text" href="{{ settings.social_twitter_link }}" title="{{ shop.name }} on Twitter">
+                                    <span class="icon icon-twitter" aria-hidden="true"></span>
+                                    <span class="fallback-text">Twitter</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                            {% if settings.social_facebook_link != blank %}
+                            <li>
+                                <a class="icon-fallback-text" href="{{ settings.social_facebook_link }}" title="{{ shop.name }} on Facebook">
+                                    <span class="icon icon-facebook" aria-hidden="true"></span>
+                                    <span class="fallback-text">Facebook</span>
+                                </a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    {% if settings.footer_newsletter_enable %}
+                    <div class="grid__item large--one-third push--large--one-third medium--one-half">
+                        {% comment %}
+                        MailChimp is the go-to newsletter service for Shopify.
+                        Use the link below to find your MailChimp form action
+                        and insert it in your site settings.
+
+                        If the form action URL is not set in the theme settings,
+                        it will fallback to a customer form so you can still capture the email.
+
+                        MailChimp newsletter integration and requirement:
+                        - http://docs.shopify.com/support/configuration/store-customization/where-do-i-get-my-mailchimp-form-action
+                        {% endcomment %}
+                        <h3>{{ 'layout.footer.newsletter_title' | t }}</h3>
+                        {% if settings.newsletter_form_action != blank %}
+                        <form action="{{ settings.newsletter_form_action }}" method="post" id="mc-embedded-subscribe-form" name="mc-embedded-subscribe-form" target="_blank" class="input-group">
+                            <input type="email" value="{% if customer %}{{ customer.email }}{% endif %}" placeholder="{{ 'general.newsletter_form.newsletter_email' | t }}" name="EMAIL" id="mail" class="input-group-field" aria-label="{{ 'general.newsletter_form.newsletter_email' | t }}" autocorrect="off" autocapitalize="off">
+                            <span class="input-group-btn">
+                                <input type="submit" class="btn" name="subscribe" id="subscribe" value="{{ 'general.newsletter_form.submit' | t }}">
+                            </span>
+                        </form>
+                        {% else %}
+                        {% form 'customer' %}
+                        {{ form.errors | default_errors }}
+                        {% if form.posted_successfully? %}
+                        <p class="note form-success">{{ 'general.newsletter_form.confirmation' | t }}</p>
+                        {% else %}
+                        <div class="input-group">
+                            <input type="email" value="{% if customer %}{{ customer.email }}{% endif %}" placeholder="{{ 'general.newsletter_form.newsletter_email' | t }}" name="contact[email]" id="Email" class="input-group-field" aria-label="{{ 'general.newsletter_form.newsletter_email' | t }}" autocorrect="off" autocapitalize="off">
+                            <input type="hidden" name="contact[tags]" value="newsletter">
+                            <span class="input-group-btn">
+                                <input type="submit" class="btn" name="subscribe" id="subscribe" value="{{ 'general.newsletter_form.submit' | t }}">
+                            </span>
+                        </div>
+                        {% endif %}
+                        {% endform %}
+                        {% endif %}
+
+                    </div>
+                    {% endif %}
+                    <div class="grid__item text-center">
+                        <hr>
+                        {% comment %}
+                        Loop through available payment methods and show their icons.
+                        {% endcomment %}
+                        {% unless shop.enabled_payment_types == empty %}
+                        {% assign payment_icons_available = 'amazon_payments,american_express,bitcoin,cirrus,dankort,diners_club,discover,dogecoin,dwolla,forbrugsforeningen,interac,jcb,litecoin,maestro,master,paypal,visa' | split: ',' %}
+                        <h4 class="text-center">{{ 'layout.footer.accepted_payments' | t }}</h4>
+                        <ul class="inline-list payment-icons">
+                            {% for type in shop.enabled_payment_types %}
+                            {% if payment_icons_available contains type %}
+                            <li>
+                                <span class="icon-fallback-text">
+                                    <span class="icon icon-{{type}}" aria-hidden="true"></span>
+                                    <span class="fallback-text">{{ type | replace: '_',' '}}</span>
+                                </span>
+                            </li>
+                            {% endif %}
+                            {% endfor %}
+                        </ul>
+                        {% endunless %}
+                        <a href="http://shopify.com/timber">Manuel Lema</a> by <a href="http://www.shopify.com?ref=Timber" title="Shopify.com">Shopify</a><br>
+                        <small>{{ powered_by_link }}</small>
+                    </div>
+                </div>
+            </div>
+        </footer>
+        <!-- //site-footer -->
+    </div>
+
+    {{ 'fastclick.min.js' | asset_url | script_tag }}
+    {{ 'timber.js' | asset_url | script_tag }}
+
+    {% comment %}
+    Template-specific js
+    {% endcomment %}
+    <script>
+    {% if resetPassword %}
+    $(function() {
+        timber.resetPasswordSuccess();
+    });
+    {% endif %}
+    </script>
+
+    {% comment %}
+    Ajaxify your cart with this plugin.
+    Documentation:
+    - http://shopify.com/timber#ajax-cart
+    {% endcomment %}
+    {% if settings.ajax_cart_method == "drawer" %}
+    {{ 'handlebars.min.js' | asset_url | script_tag }}
+    {% include 'ajax-cart-template' %}
+    {{ 'ajax-cart.js' | asset_url | script_tag }}
+    <script>
+    jQuery(function($) {
+        ajaxCart.init({
+            formSelector: '#AddToCartForm',
+            cartContainer: '#CartContainer',
+            addToCartSelector: '#AddToCart',
+            cartCountSelector: '#CartCount',
+            cartCostSelector: '#CartCost',
+            moneyFormat: {{ shop.money_format | json }}
+        });
+    });
+
+    jQuery(document.body).on('afterCartLoad.ajaxCart', function(evt, cart) {
+        // Bind to 'afterCartLoad.ajaxCart' to run any javascript after the cart has loaded in the DOM
+        timber.RightDrawer.open();
+    });
+    </script>
+    {% endif %}
+
+    <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" display="none">
+        <symbol id="icon-menu" viewBox="0 0 21 16">
+            <title>icon-menu</title>
+            <g id="Home-Page" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" stroke-linecap="round" stroke-linejoin="bevel">
+                <g id="Mobile-Portrait" transform="translate(-10.000000, -17.000000)" stroke-width="2">
+                    <g id="Header" transform="translate(0.000000, 13.000000)">
+                        <g id="Menu" transform="translate(11.000000, 4.000000)">
+                            <path d="M0,1 L18.473634,1" id="Path-2" stroke="#4A4A4A"></path>
+                            <path d="M0,15 L18.473634,15" id="Path-2" stroke="#4A4A4A"></path>
+                            <path d="M0,8 L13.992516,8" id="Path-2" stroke="#DC3370"></path>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </symbol>
+
+        <symbol id="icon-search" viewBox="0 0 19 18">
+            <title>icon-menu</title>
+            <g id="Home-Search" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                <g id="Mobile-Portrait" transform="translate(-263.000000, -14.000000)">
+                    <g id="Header" transform="translate(0.000000, 13.000000)">
+                        <g id="Search" transform="translate(263.000000, 1.000000)">
+                            <g id="Icon" transform="translate(0.080617, 0.000000)">
+                                <path d="M6.66380789,13.6878216 C2.98982847,13.6878216 0,10.617187 0,6.84391081 C0,3.07063465 2.98982847,0 6.66380789,0 C10.3377873,0 13.3276158,3.07063465 13.3276158,6.84391081 C13.3276158,10.617187 10.3377873,13.6878216 6.66380789,13.6878216 L6.66380789,13.6878216 Z M6.66380789,1.52086907 C3.80577473,1.52086907 1.4808462,3.9086335 1.4808462,6.84391081 C1.4808462,9.77918811 3.80577473,12.1669525 6.66380789,12.1669525 C9.52184105,12.1669525 11.8467696,9.77918811 11.8467696,6.84391081 C11.8467696,3.9086335 9.52184105,1.52086907 6.66380789,1.52086907 L6.66380789,1.52086907 Z" id="Fill-31" fill="#4A4A4A"></path>
+                                <path d="M16.132508,18.0102916 C15.6517954,18.0102916 15.1710828,17.8230571 14.8052906,17.4493554 L9.58505231,12.1162411 C9.29211807,11.8162054 9.29211807,11.33047 9.58505231,11.0312017 C9.87873766,10.731166 10.3541925,10.731166 10.6471267,11.0312017 L15.867365,16.364316 C16.0160855,16.5162522 16.2489306,16.5162522 16.3976511,16.364316 C16.4705091,16.2891153 16.5080647,16.1978001 16.5080647,16.0934399 C16.5080647,15.9890796 16.4705091,15.8977644 16.3969,15.8225637 L13.1565966,12.5114287 C12.8629113,12.211393 12.8629113,11.7256576 13.1565966,11.4263893 C13.4495309,11.1263537 13.9249857,11.1263537 14.218671,11.4263893 L17.4597255,14.7375243 C17.8150021,15.1012504 18.0102916,15.5823817 18.0102916,16.0934399 C18.0102916,16.604498 17.8150021,17.0856293 17.4604766,17.4493554 C17.0939332,17.8230571 16.6132206,18.0102916 16.132508,18.0102916" id="Fill-32" fill="#4A4A4A"></path>
+                                <path d="M2.88164666,6.7838765 C2.88164666,4.63218696 4.63218696,2.88164666 6.7838765,2.88164666 C7.21468268,2.88164666 7.56432247,3.23128645 7.56432247,3.66209262 C7.56432247,4.0928988 7.21468268,4.44253859 6.7838765,4.44253859 C5.49301887,4.44253859 4.44253859,5.49301887 4.44253859,6.7838765 C4.44253859,7.21468268 4.0928988,7.56432247 3.66209262,7.56432247 C3.23128645,7.56432247 2.88164666,7.21468268 2.88164666,6.7838765 Z" id="Fill-33" fill="#DC3370"></path>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </symbol>
+
+        <symbol id="icon-cart" viewBox="0 0 17 19">
+            <title>icon-cart</title>
+            <g id="Home-cart" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+                <g id="Mobile-Portrait" transform="translate(-290.000000, -13.000000)">
+                    <g id="Header" transform="translate(0.000000, 13.000000)">
+                        <g id="Cart" transform="translate(290.000000, 0.000000)">
+                            <g id="Icon">
+                                <path d="M2.53632467,18.7813609 C1.88831092,18.7813609 1.2719076,18.4918149 0.843661584,17.9870659 C0.414662936,17.4823168 0.215968825,16.8101006 0.295747521,16.1425797 L0.451541767,14.8435356 L1.20718149,14.8685774 L1.95378966,14.9679621 L1.78896387,16.3366538 C1.76186922,16.5628127 1.82659533,16.7803634 1.97185276,16.9517433 C2.11635757,17.1223407 2.31730957,17.2162475 2.53632467,17.2162475 L12.6727348,17.2162475 C12.8917499,17.2162475 13.0927019,17.1223407 13.2372067,16.9517433 C13.3824642,16.7803634 13.4471903,16.5628127 13.4200956,16.3366538 L12.2911518,6.94597331 C12.2437362,6.55547752 11.9223635,6.26045364 11.543791,6.26045364 L3.66526848,6.26045364 C3.28669599,6.26045364 2.96532332,6.55547752 2.91790768,6.94597331 L2.33010427,11.8353876 C2.27817285,12.2642287 1.90336351,12.5670781 1.49017007,12.5146468 C1.07772927,12.461433 0.784956505,12.0701546 0.836887921,11.6413135 L1.42469133,6.75189925 C1.56543299,5.5796293 2.52879838,4.69534023 3.66526848,4.69534023 L11.543791,4.69534023 C12.6802611,4.69534023 13.6436265,5.5796293 13.7843682,6.75189925 L14.913312,16.1425797 C14.9930907,16.8101006 14.7943966,17.4823168 14.3653979,17.9870659 C13.9371519,18.4918149 13.3207486,18.7813609 12.6727348,18.7813609 L2.53632467,18.7813609 Z" id="Fill-78" fill="#4A4A4A"></path>
+                                <path d="M4.19549091,15.6511341 C3.77928696,15.6511341 3.4428617,15.3013312 3.4428617,14.8685774 C3.4428617,14.4358235 3.77928696,14.0860207 4.19549091,14.0860207 L11.0285081,14.0860207 C11.4447121,14.0860207 11.7811373,14.4358235 11.7811373,14.8685774 C11.7811373,15.3013312 11.4447121,15.6511341 11.0285081,15.6511341 L4.19549091,15.6511341 Z" id="Fill-79" fill="#DC3370"></path>
+                                <path d="M10.6150466,8.60812375 C10.1988426,8.60812375 9.86241737,8.25832091 9.86241737,7.82556705 L9.86241737,3.91278352 C9.86241737,2.61843473 8.84937846,1.56511341 7.60452975,1.56511341 C6.35968104,1.56511341 5.34664213,2.61843473 5.34664213,3.91278352 L5.34664213,7.82556705 C5.34664213,8.25832091 5.01021687,8.60812375 4.59401292,8.60812375 C4.17780897,8.60812375 3.84138371,8.25832091 3.84138371,7.82556705 L3.84138371,3.91278352 C3.84138371,1.75527469 5.52953102,0 7.60452975,0 C9.67952847,0 11.3676758,1.75527469 11.3676758,3.91278352 L11.3676758,7.82556705 C11.3676758,8.25832091 11.0312505,8.60812375 10.6150466,8.60812375" id="Fill-80" fill="#464646"></path>
+                            </g>
+                        </g>
+                    </g>
+                </g>
+            </g>
+        </symbol>
+
+    </svg>
+
+</body>
+</html>
